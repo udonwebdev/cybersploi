@@ -141,19 +141,19 @@ export default function LandingPage() {
             </a>
           </nav>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <Link
               href="/login"
-              className="text-xs font-mono tracking-wider text-slate-300 hover:text-white px-3 py-2 transition-colors"
+              className="text-xs font-mono font-semibold tracking-wider text-slate-300 hover:text-cyber-cyan px-4 py-2 rounded-lg border border-slate-800 hover:border-cyber-cyan/40 bg-slate-900/40 backdrop-blur-md transition-all uppercase"
             >
-              SIGN IN
+              LOGIN
             </Link>
             <Link
               href="/register"
-              className="relative inline-flex items-center justify-center p-0.5 overflow-hidden text-xs font-mono font-medium rounded-lg group bg-gradient-to-br from-cyber-cyan via-blue-500 to-indigo-600 group-hover:from-cyber-cyan group-hover:to-blue-500 hover:text-white text-white shadow-glow hover:shadow-glow-lg transition-all"
+              className="relative inline-flex items-center justify-center p-0.5 overflow-hidden text-xs font-mono font-semibold rounded-lg group bg-gradient-to-br from-cyber-cyan via-blue-500 to-indigo-600 group-hover:from-cyber-cyan group-hover:to-blue-500 hover:text-white text-white shadow-glow hover:shadow-glow-lg transition-all"
             >
-              <span className="relative px-5 py-2 transition-all ease-in duration-75 bg-[#050609] rounded-md group-hover:bg-opacity-0 font-semibold tracking-widest uppercase">
-                GET STARTED
+              <span className="relative px-5 py-2 transition-all ease-in duration-75 bg-[#050609] rounded-md group-hover:bg-opacity-0 tracking-widest uppercase">
+                SIGN UP
               </span>
             </Link>
           </div>
