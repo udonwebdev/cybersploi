@@ -429,7 +429,7 @@ router.post('/:id/transition', async (req: Request, res: Response) => {
 
     const result = await EngagementStateMachine.transition({
       engagementId,
-      targetPhase,
+      targetPhase: targetPhase as any,
       actor: actor || 'admin',
       reason: reason || 'Manual transition request',
       actionId
@@ -439,7 +439,7 @@ router.post('/:id/transition', async (req: Request, res: Response) => {
       return res.status(400).json(result);
     }
 
-    return res.json({ success: true, ...result, engagement: (result as any).engagement });
+    return res.json({ ...result, success: true, engagement: (result as any).engagement });
   } catch (error: any) {
     return res.status(500).json({ success: false, error: error.message });
   }
@@ -639,9 +639,15 @@ router.post('/:id/agents/run', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, error: `Agent '${agentName}' not found` });
     }
 
+    const engagement = await prisma.engagement.findUnique({
+      where: { id: engagementId },
+      include: { scope: true }
+    });
+
     const result = await agent.run({
       engagementId,
       target,
+      scope: engagement?.scope || {},
       parameters,
       authContext
     });
