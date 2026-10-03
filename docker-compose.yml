@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: cybersploi-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cybersploi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cybersploi_dev_pass_123}
+      POSTGRES_DB: ${POSTGRES_DB:-cybersploi}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cybersploi-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cybersploi}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache for Job Queues (BullMQ)
+  redis:
+    image: redis:7-alpine
+    container_name: cybersploi-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - cybersploi-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Core API Gateway (Node.js / Express / Prisma)
+  api-gateway:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cybersploi-api-gateway
+    environment:
+      PORT: 8000
+      NODE_ENV: development
+      DATABASE_URL: ${DATABASE_URL:-file:./cybersploi.db}
+      REDIS_URL: redis://redis:6379
+      AI_SERVICE_URL: http://ai-service:8001
+      FRONTEND_URL: http://localhost:3000
+      JWT_SECRET: ${JWT_SECRET:-dev-super-secret-key-32-chars-min}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - cybersploi-network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # AI Inference Microservice (Python / FastAPI)
+  ai-service:
+    build:
+      context: ./ai-engine
+      dockerfile: Dockerfile
+    container_name: cybersploi-ai-service
+    environment:
+      PORT: 8001
+      PYTHONUNBUFFERED: 1
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./ai-engine:/app
+    networks:
+      - cybersploi-network
+    restart: unless-stopped
+
+  # Frontend (Next.js 14 App Router)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cybersploi-frontend
+    environment:
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - cybersploi-network
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+
+networks:
+  cybersploi-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

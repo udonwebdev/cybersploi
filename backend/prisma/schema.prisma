@@ -1,0 +1,924 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  password   String
+  firstName  String
+  lastName   String
+  username   String   @unique
+  avatar     String?
+
+  emailVerified Boolean @default(false)
+  verificationToken String?
+  verificationTokenExpires DateTime?
+
+  organization   Organization? @relation("OrganizationOwner")
+  organizations  User_Organization[]
+  
+  sessions Session[]
+  apiKeys  ApiKey[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+model Organization {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  logoUrl         String?
+  ownerId         String   @unique
+  owner           User     @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  members          User_Organization[]
+  assets           Asset[]
+  scans            Scan[]
+  vulnerabilities  Vulnerability[]
+  reports          Report[]
+  apiKeys          ApiKey[]
+  billing          Billing?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User_Organization {
+  userId         String
+  organizationId String
+  role           String @default("member") // owner, admin, member
+  
+  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([userId, organizationId])
+}
+
+model Asset {
+  id                  String   @id @default(cuid())
+  organizationId      String?
+  organization        Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  engagementId        String?
+  engagement          Engagement?   @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  type                String?  // domain, ip, website, api, mobile_app
+  value               String?
+  description         String?
+
+  host                String?
+  port                Int?
+  protocol            String?
+  discoveredAt        DateTime? @default(now())
+
+  verificationStatus  String   @default("pending") // pending, verified, failed
+  verificationToken   String?
+  verificationMethod  String?  // dns, file, token
+
+  scans               Scan[]
+  vulnerabilities     Vulnerability[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([engagementId])
+}
+
+model Scan {
+  id                String   @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  assetId           String
+  asset             Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  type              String   // full, quick, custom, advanced, malware, threat_intel
+  status            String   @default("pending") // pending, running, completed, failed, cancelled
+  priority          Int      @default(0)
+  progress          Int      @default(0)
+
+  configuration     String?
+  findings          Int      @default(0)
+  criticalCount     Int      @default(0)
+  highCount         Int      @default(0)
+
+  vulnerabilities   Vulnerability[]
+  results           ScanResult?
+  redTeamAssessment RedTeamAssessment?
+
+  startedAt         DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([assetId])
+  @@index([status])
+}
+
+model ScanResult {
+  id                String   @id @default(cuid())
+  scanId            String   @unique
+  scan              Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  rawData           String?
+  summary           String?
+  recommendations   String?
+  
+  createdAt         DateTime @default(now())
+}
+
+model Vulnerability {
+  id                String   @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  scanId            String
+  scan              Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  
+  assetId           String
+  asset             Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  title             String
+  description       String
+  type              String   // sql_injection, xss, rce, auth_bypass, etc
+  severity          String   // critical, high, medium, low, info
+  
+  cvss              String?
+  cve               String?
+  cwe               String?
+  
+  evidence          String?
+  remediation       String?
+  references        String?
+
+  status            String   @default("open") // open, remediated, accepted_risk
+  remediated        Boolean  @default(false)
+  remediatedAt      DateTime?
+
+  tags              String?
+  customData        String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([scanId])
+  @@index([severity])
+  @@index([status])
+}
+
+model Report {
+  id                String   @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  title             String
+  description       String?
+  format            String   // pdf, html, json
+  
+  findings          Int      @default(0)
+  criticalCount     Int      @default(0)
+  highCount         Int      @default(0)
+  
+  generatedAt       DateTime @default(now())
+  expiresAt         DateTime?
+
+  fileUrl           String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model ApiKey {
+  id                String   @id @default(cuid())
+  userId            String?
+  user              User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name              String
+  key               String   @unique
+  secret            String   @unique
+  
+  lastUsed          DateTime?
+  expiresAt         DateTime?
+  isActive          Boolean  @default(true)
+  
+  createdAt         DateTime @default(now())
+
+  @@index([organizationId])
+}
+
+model Billing {
+  id                String   @id @default(cuid())
+  organizationId    String   @unique
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  plan              String   // free, pro, enterprise
+  status            String   // active, inactive, past_due
+  
+  customerId        String?  // Stripe customer ID
+  subscriptionId    String?
+  
+  monthlyScans      Int
+  scansUsed         Int      @default(0)
+  
+  billingPeriodStart DateTime?
+  billingPeriodEnd  DateTime?
+  
+  nextBillingDate   DateTime?
+  amount            Int?
+  currency          String   @default("usd")
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Session {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  userAgent         String?
+  ipAddress         String?
+  
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id                String   @id @default(cuid())
+  organizationId    String
+  userId            String?
+
+  action            String
+  resource          String
+  resourceId        String?
+  
+  changes           String?
+  ipAddress         String?
+  userAgent         String?
+
+  createdAt         DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ============ PHASE 5: INCIDENT RESPONSE ============
+
+model Incident {
+  id                String   @id
+  organizationId    String
+  
+  title             String
+  description       String?
+  severity          String   @default("medium")
+  status            String   @default("open")
+  
+  detectionSource   String?
+  detectedAt        DateTime?
+  assignedTo        String?
+  confidence        Float    @default(0.0)
+  
+  indicators        String   @default("[]")
+  metadata          String?
+  
+  remediationTasks  RemediationTask[]
+  alerts            Alert[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([organizationId])
+  @@index([status])
+  @@index([severity])
+}
+
+model Playbook {
+  id                String   @id
+  organizationId    String
+  
+  name              String
+  description       String?
+  isActive          Boolean  @default(true)
+  createdBy         String?
+  
+  steps             PlaybookStep[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([organizationId])
+}
+
+model PlaybookStep {
+  id                String   @id
+  playbookId        String
+  playbook          Playbook @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+  
+  sequence          Int      @default(0)
+  action            String
+  parameters        String?
+  timeoutMs         Int      @default(60000)
+  
+  remediationTasks  RemediationTask[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([playbookId])
+}
+
+model RemediationTask {
+  id                String   @id
+  incidentId        String
+  incident          Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  
+  playbookStepId    String?
+  playbookStep      PlaybookStep? @relation(fields: [playbookStepId], references: [id], onDelete: SetNull)
+  
+  status            String   @default("pending")
+  executor          String?
+  
+  startedAt         DateTime?
+  completedAt       DateTime?
+  result            String?
+  logs              String?
+  
+  endpointActions   EndpointAction[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([incidentId])
+  @@index([status])
+}
+
+model Alert {
+  id                String   @id
+  organizationId    String
+  
+  incidentId        String?
+  incident          Incident? @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  
+  provider          String?
+  externalId        String?
+  severity          String?
+  payload           String?
+  
+  receivedAt        DateTime @default(now())
+  
+  @@index([organizationId])
+  @@index([incidentId])
+}
+
+model EndpointAction {
+  id                String   @id
+  remediationTaskId String
+  remediationTask   RemediationTask @relation(fields: [remediationTaskId], references: [id], onDelete: Cascade)
+  
+  endpointId        String?
+  actionType        String?
+  parameters        String?
+  status            String   @default("queued")
+  
+  startedAt         DateTime?
+  completedAt       DateTime?
+  result            String?
+  
+  @@index([remediationTaskId])
+}
+
+// ============ RED TEAM AUTONOMOUS ENGINE SUBSYSTEM ============
+
+model RedTeamScope {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  target             String
+  allowedDomains     String   @default("[]")
+  allowedSubdomains  String   @default("[]")
+  allowedIps         String   @default("[]")
+  allowedPorts       String   @default("[]")
+  allowedProtocols   String   @default("[\"http\",\"https\",\"tcp\"]")
+  allowedPaths       String   @default("[]")
+  excludedAssets     String   @default("[]")
+  excludedPaths      String   @default("[]")
+  timeBudgetMinutes  Int      @default(30)
+  concurrencyLimit   Int      @default(5)
+  destructiveTesting Boolean  @default(false)
+  credentialTesting  Boolean  @default(false)
+  dataAccessPolicy   String   @default("metadata_only")
+  persistencePolicy  String   @default("strictly_prohibited")
+  environment        String   @default("production_authorized")
+  
+  assessments        RedTeamAssessment[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model RedTeamAssessment {
+  id                 String   @id @default(cuid())
+  scanId             String   @unique
+  scan               Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  
+  scopeId            String?
+  scope              RedTeamScope? @relation(fields: [scopeId], references: [id], onDelete: SetNull)
+  
+  phase              String   @default("INITIALIZING")
+  currentObjective   String?
+  progress           Int      @default(0)
+  status             String   @default("RUNNING")
+  
+  hypotheses         RedTeamHypothesis[]
+  graphNodes         AttackGraphNode[]
+  graphEdges         AttackGraphEdge[]
+  sessions           VerificationSession[]
+  events             AssessmentEvent[]
+  coverage           AssessmentCoverage?
+  
+  startedAt          DateTime @default(now())
+  completedAt        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  @@index([phase])
+  @@index([status])
+}
+
+model RedTeamHypothesis {
+  id                 String   @id @default(cuid())
+  assessmentId       String
+  assessment         RedTeamAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  
+  title              String
+  description        String
+  category           String
+  targetEndpoint     String?
+  initialConfidence  Float    @default(0.5)
+  currentConfidence  Float    @default(0.5)
+  confidenceBasis    String?
+  
+  status             String   @default("OBSERVED")
+  testProcedure      String?
+  evidence           String?
+  rejectionReason    String?
+  retestAttempts     Int      @default(0)
+  
+  vulnerabilityId    String?
+  verifiedAt         DateTime?
+  rejectedAt         DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  @@index([assessmentId])
+  @@index([status])
+}
+
+model AttackGraphNode {
+  id                 String   @id @default(cuid())
+  assessmentId       String
+  assessment         RedTeamAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  
+  nodeId             String
+  label              String
+  category           String
+  severity           String?
+  status             String   @default("discovered")
+  properties         String?
+  evidence           String?
+  
+  createdAt          DateTime @default(now())
+  
+  @@unique([assessmentId, nodeId])
+  @@index([assessmentId])
+  @@index([category])
+}
+
+model AttackGraphEdge {
+  id                 String   @id @default(cuid())
+  assessmentId       String
+  assessment         RedTeamAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  
+  sourceNodeId       String
+  targetNodeId       String
+  relation           String
+  confidence         Float    @default(1.0)
+  evidence           String?
+  isCriticalPath     Boolean  @default(false)
+  
+  createdAt          DateTime @default(now())
+  
+  @@unique([assessmentId, sourceNodeId, targetNodeId, relation])
+  @@index([assessmentId])
+}
+
+model VerificationSession {
+  id                 String   @id @default(cuid())
+  assessmentId       String
+  assessment         RedTeamAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  
+  sessionToken       String   @unique
+  target             String
+  findingId          String?
+  status             String   @default("ACTIVE")
+  
+  verificationObjective String
+  executionContext   String?
+  privilegeContext   String?
+  evidence           String?
+  auditTrail         String?
+  
+  expiresAt          DateTime
+  startedAt          DateTime @default(now())
+  terminatedAt       DateTime?
+  terminationReason  String?
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  @@index([assessmentId])
+  @@index([status])
+}
+
+model AssessmentCoverage {
+  id                 String   @id @default(cuid())
+  assessmentId       String   @unique
+  assessment         RedTeamAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  
+  assetsDiscovered   Int      @default(0)
+  assetsTested       Int      @default(0)
+  routesDiscovered   Int      @default(0)
+  routesTested       Int      @default(0)
+  apisDiscovered     Int      @default(0)
+  apisTested         Int      @default(0)
+  authFlowsTested    Int      @default(0)
+  hypothesesGenerated Int     @default(0)
+  hypothesesResolved Int      @default(0)
+  verifiedCount      Int      @default(0)
+  rejectedCount      Int      @default(0)
+  inconclusiveCount  Int      @default(0)
+  
+  coveragePercent    Float    @default(0.0)
+  blindSpots         String   @default("[]")
+  breakdown          String?
+  
+  updatedAt          DateTime @updatedAt
+}
+
+model AssessmentEvent {
+  id                 String   @id @default(cuid())
+  assessmentId       String
+  assessment         RedTeamAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  
+  phase              String
+  stage              String?
+  level              String   @default("INFO")
+  message            String
+  metadata           String?
+  
+  timestamp          DateTime @default(now())
+  
+  @@index([assessmentId])
+  @@index([timestamp])
+}
+
+// ============ EXERCISE ENGINE & SCOPE GUARD ============
+
+model Engagement {
+  id             String          @id @default(cuid())
+  name           String
+  status         String          @default("planning") // planning, active, paused, complete
+  environment    String          @default("lab")      // lab, staging, client-authorized
+  currentPhase   String          @default("RECON")
+  startedAt      DateTime?
+  endedAt        DateTime?
+  
+  scope          Scope?
+  assets         Asset[]
+  auditLogs      AuditLogEntry[]
+  transitions    EngagementStateTransition[]
+  findings       EngineFinding[]
+  attackPaths    EngineAttackPath[]
+  authMatrix     AuthMatrixRecord[]
+  gauntletRuns   GauntletExecution[]
+  graphNodes     SecurityGraphNode[]
+  graphEdges     SecurityGraphEdge[]
+  differentialRecords DifferentialEvidence[]
+
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([status])
+  @@index([environment])
+  @@index([currentPhase])
+}
+
+model Scope {
+  id                        String      @id @default(cuid())
+  engagementId              String      @unique
+  engagement                Engagement  @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  allowedTargets            String      // JSON string array of { host/CIDR/URL pattern, ports?, protocols? }
+  allowedTestTypes          String      // JSON string array of enum strings: RECON, AUTH, IDOR, INJECTION, XSS, SSRF, ...
+  destructiveActionsAllowed Boolean     @default(false)
+  activePoCAllowed          Boolean     @default(false)
+  rateLimit                 String      // JSON string: { requestsPerSecond, concurrency }
+  concurrencyLimit          Int         @default(5)
+  validFrom                 DateTime
+  validUntil                DateTime
+  environment               String      @default("lab")
+  approvedBy                String
+  approvalRecordUrl         String?
+
+  createdAt                 DateTime    @default(now())
+  updatedAt                 DateTime    @updatedAt
+
+  @@index([engagementId])
+}
+
+model AuditLogEntry {
+  id                String      @id @default(cuid())
+  engagementId      String
+  engagement        Engagement  @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  action            String
+  targetHost        String
+  requestedTestType String
+  decision          String      // ALLOWED, BLOCKED_OUT_OF_SCOPE, BLOCKED_EXPIRED_SCOPE, BLOCKED_TEST_TYPE, BLOCKED_RATE_LIMIT, BLOCKED_CONCURRENCY, BLOCKED_DESTRUCTIVE_ACTION, BLOCKED_POC_DISABLED
+  reason            String?
+  metadata          String?     // JSON string: Action details, timestamps, rate limit status
+
+  timestamp         DateTime    @default(now())
+
+  @@index([engagementId])
+  @@index([decision])
+  @@index([timestamp])
+}
+
+model EngagementStateTransition {
+  id             String      @id @default(cuid())
+  engagementId   String
+  engagement     Engagement  @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  
+  previousState  String
+  newState       String
+  timestamp      DateTime    @default(now())
+  actor          String
+  reason         String
+  scopeId        String?
+  actionId       String?
+
+  @@index([engagementId])
+  @@index([timestamp])
+}
+
+model EngineFinding {
+  id             String      @id @default(cuid())
+  engagementId   String
+  engagement     Engagement  @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  
+  title          String
+  description    String
+  category       String      // RECON, AUTH, IDOR, INJECTION, XSS, SSRF
+  severity       String      // CRITICAL, HIGH, MEDIUM, LOW, INFO
+  target         String
+  status         String      @default("SUSPECTED") // SUSPECTED, TESTED, VALIDATED, PROVEN, DISPROVEN, INCONCLUSIVE
+  reproducible   Boolean     @default(false)
+  hypothesisId   String?
+  
+  evidence       EngineEvidence[]
+  fromTransitions AttackPathTransition[] @relation("FromFinding")
+  toTransitions   AttackPathTransition[] @relation("ToFinding")
+
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([engagementId])
+  @@index([status])
+  @@index([severity])
+}
+
+model EngineEvidence {
+  id                  String         @id @default(cuid())
+  findingId           String?
+  finding             EngineFinding? @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  
+  actionId            String
+  target              String
+  timestamp           DateTime       @default(now())
+  requestMetadata     String?        // JSON string
+  responseMetadata    String?        // JSON string
+  responseBodyData    String?        // JSON string
+  observation         String
+  reproductionSteps   String?
+  authContext         String?        // JSON string
+  workerResult        String?        // JSON string
+  hash                String         // SHA-256 integrity hash
+  isImmutable         Boolean        @default(true)
+  
+  previousEvidenceId  String?
+  previousEvidence    EngineEvidence? @relation("EvidenceHistory", fields: [previousEvidenceId], references: [id])
+  nextEvidence        EngineEvidence[] @relation("EvidenceHistory")
+
+  transitions         AttackPathTransition[]
+
+  createdAt           DateTime       @default(now())
+
+  @@index([findingId])
+  @@index([actionId])
+  @@index([hash])
+}
+
+model EngineAttackPath {
+  id             String                 @id @default(cuid())
+  engagementId   String
+  engagement     Engagement             @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  
+  title          String
+  description    String?
+  status         String                 @default("HYPOTHESIZED") // HYPOTHESIZED, INCOMPLETE, DEMONSTRATED
+  findingsOrder  String                 @default("[]") // JSON string array of finding IDs
+  
+  transitions    AttackPathTransition[]
+
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@index([engagementId])
+  @@index([status])
+}
+
+model AttackPathTransition {
+  id               String           @id @default(cuid())
+  attackPathId     String
+  attackPath       EngineAttackPath @relation(fields: [attackPathId], references: [id], onDelete: Cascade)
+  
+  fromFindingId    String
+  fromFinding      EngineFinding    @relation("FromFinding", fields: [fromFindingId], references: [id], onDelete: Cascade)
+  
+  toFindingId      String
+  toFinding        EngineFinding    @relation("ToFinding", fields: [toFindingId], references: [id], onDelete: Cascade)
+  
+  evidenceId       String?
+  evidence         EngineEvidence?  @relation(fields: [evidenceId], references: [id], onDelete: SetNull)
+  hasValidEvidence Boolean          @default(false)
+
+  createdAt        DateTime         @default(now())
+
+  @@index([attackPathId])
+  @@index([fromFindingId])
+  @@index([toFindingId])
+}
+
+model AuthMatrixRecord {
+  id              String      @id @default(cuid())
+  engagementId    String
+  engagement      Engagement  @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  
+  assetId         String?
+  operation       String
+  role            String
+  subjectIdentity String
+  objectIdentity  String
+  expected        String      // ALLOWED, DENIED, UNKNOWN
+  observed        String      // ALLOWED, DENIED, ERROR
+  result          String      // MATCH, DISCREPANCY, UNKNOWN
+  evidenceId      String?
+  findingId       String?
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([engagementId])
+  @@index([role])
+  @@index([result])
+}
+
+model GauntletExecution {
+  id             String      @id @default(cuid())
+  engagementId   String
+  engagement     Engagement  @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  
+  findingId      String?
+  status         String      @default("RUNNING") // RUNNING, COMPLETED, CANCELLED, FAILED, INCONCLUSIVE, MAX_ITERATIONS_REACHED
+  currentStep    String      @default("BUILD_TEST") // BUILD_TEST, EXECUTE, OBSERVE, ANALYZE, MODIFY, RETEST, VERIFY
+  iteration      Int         @default(1)
+  maxIterations  Int         @default(5)
+  timeoutMs      Int         @default(30000)
+  correlationId  String      @unique
+  
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([engagementId])
+  @@index([status])
+}
+
+// ============ OMNISCIENT SECURITY GRAPH & REASONING MODELS ============
+
+model SecurityGraphNode {
+  id             String      @id @default(cuid())
+  engagementId   String
+  engagement     Engagement  @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  nodeType       String      // ENGAGEMENT, SCOPE, DOMAIN, SUBDOMAIN, IP, CIDR, PORT, SERVICE, APPLICATION, API, ENDPOINT, PARAMETER, IDENTITY, ROLE, VULNERABILITY, EVIDENCE, ATTACK_PATH, REMEDIATION
+  nodeKey        String      // Unique identifier key within engagement & type
+  label          String
+  properties     String      @default("{}") // JSON string: metadata, status, risk, flags
+  
+  outgoingEdges  SecurityGraphEdge[] @relation("FromNode")
+  incomingEdges  SecurityGraphEdge[] @relation("ToNode")
+
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@unique([engagementId, nodeType, nodeKey])
+  @@index([engagementId])
+  @@index([nodeType])
+}
+
+model SecurityGraphEdge {
+  id             String      @id @default(cuid())
+  engagementId   String
+  engagement     Engagement  @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  fromNodeId     String
+  fromNode       SecurityGraphNode @relation("FromNode", fields: [fromNodeId], references: [id], onDelete: Cascade)
+
+  toNodeId       String
+  toNode         SecurityGraphNode @relation("ToNode", fields: [toNodeId], references: [id], onDelete: Cascade)
+
+  edgeType       String      // HOSTS, EXPOSES, CALLS, AUTHENTICATES, AUTHORIZES, DEPENDS_ON, LEADS_TO, CONFIRMS, DISPROVES, MITIGATES, RETESTS
+  weight         Float       @default(1.0)
+  evidenceId     String?
+  properties     String      @default("{}") // JSON string
+
+  createdAt      DateTime    @default(now())
+
+  @@unique([engagementId, fromNodeId, toNodeId, edgeType])
+  @@index([engagementId])
+  @@index([edgeType])
+}
+
+model DifferentialEvidence {
+  id                String      @id @default(cuid())
+  engagementId      String
+  engagement        Engagement  @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  target            String
+  operation         String
+  baselineContext   String      // JSON string
+  testContext       String      // JSON string
+  statusBaseline    Int
+  statusTest        Int
+  statusDiff        Boolean     @default(false)
+  bodyDiff          String?     // Summary or unified diff
+  headerDiff        String?     // JSON string
+  discrepancy       Boolean     @default(false)
+  findingId         String?
+  hash              String      // SHA-256 hash of diff payload
+
+  createdAt         DateTime    @default(now())
+
+  @@index([engagementId])
+  @@index([discrepancy])
+}
+
+model SecurityCapability {
+  id                 String      @id @default(cuid())
+  name               String      @unique
+  version            String
+  category           String      // RECON, MAPPING, AUTH, INJECTION, CONFIG, CRYPTO, RETEST, BROWSER
+  description        String
+  supportedProtocols String      // JSON string array
+  requiredScopeTypes String      // JSON string array
+  riskLevel          String      @default("LOW") // PASSIVE, LOW, MEDIUM, HIGH, CRITICAL
+  isEnabled          Boolean     @default(true)
+  metadata           String      @default("{}") // JSON string
+
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+}
+
+
+

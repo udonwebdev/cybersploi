@@ -1,0 +1,71 @@
+Trading is an exchange between a buyer and a seller and in order for a buyer to buy something there must be a seller and vice versal
+POI:POINT OF INTEREST 
+###Diffrent comodities to trade:
+
+Major pairs       Minor pairs     Exotic pairs
+
+Eur/usd		  Eur/Gbp	  GBP/CAD
+
+USD/JPY		  EUR/AUD	  USD/HKD
+
+GBP/USD		  GBP/JPY	  USD/HKD 
+	  
+USD/CHF		  CHF/JPY	  NZD/SGD
+
+USD/CAD		  NZD/JPY	  GBP/ZAR
+
+AUD/USD		  GBP/CAD	  AUD/MXN
+
+###DIFFERENT TYPES OF TRADERS 
+
+1) SCALPER: They like to get in and out of the market within minuetes
+
+2) DAY TRADER:Enters and leaves within the day e.g 4-6-7 hrs
+
+3) INTRA-DAY TRADER: just a little teh day trader. just trades for a certain amout of days 
+
+4) THE SWING TRADER:is someone that enters a trade and his only intention is leave it for weeks
+
+5) POSITION TRADER: they usually have a lot of money already in the bank.They can place trades for months and leave it there.
+
+###OHLC(OPEN,HIGH,LOW,CLOSE)
+
+###WHat are candles ?
+
+whenever the candle is green it's a bullish candle 
+and whenever a candle is red its a bearish candle 
+
+N:B whenever the market goes up its a bullish trend 
+and whenever the market goes down its a bearish trend
+
+##WICKS
+the wicks show the high of the market 
+
+###HIGHER HIGHS , HIGHER LOWS, LOWER HIGHS & LOWER LOWS(HH,HL,LL)
+
+##The market follows three behaviours:
+
+first behaviour:the market will  trend
+
+second behaiour:consolidate 
+
+third behaviour:Retrace
+
+###SUPPORT AND RESISTANCE 
+
+once support is broken support, now becomes resistanec aand vice versal 
+
+SUPPLY AND DEMAND ZONES
+
+n:b whenever to move to the lower time frames is called scaling in 
+N:B Whenever an order block hasn't been touched yet it is called unmitigated 
+#and whenever the price has touched an order block before and goes and comes back to the same order block its called mitigated
+
+Y-CURVE
+y-curve is a skematic i.e it takes place in th stocks in form of acumulation and distribution every single time on every single time frame 
+it was founded by a guy called richard y-curve 
+N:B whenever price is very high we look for y-curve(whenever price is at supply we look for y-curve distribution) 
+whenever price is low we look for y-curve(whenever price is at demand we look for y-curve accumulation)
+##liquidity 
+Liquidity is an area where a lot of money is laying in the market 
+#trend line liquidity
