@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
  * - A09: Security Logging & Monitoring
  */
 
-const publicRoutes = ["/login", "/register", "/consent"];
+const publicRoutes = ["/", "/login", "/register", "/consent"];
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -31,15 +31,6 @@ export async function middleware(request: NextRequest) {
     request.cookies.get("cybersploi_token")?.value ||
     request.cookies.get("auth_token")?.value ||
     request.headers.get("authorization")?.replace("Bearer ", "");
-
-  // Root route: redirect authenticated users to dashboard, unauthenticated to login
-  if (pathname === "/") {
-    if (token) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
-    } else {
-      return NextResponse.redirect(new URL("/login", request.url));
-    }
-  }
 
   // Determine if path is public (/login, /register, /consent)
   const isPublic = publicRoutes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
