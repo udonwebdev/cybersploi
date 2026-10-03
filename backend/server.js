@@ -39,6 +39,21 @@ app.use((req, res, next) => {
 });
 
 // ============ HEALTH & METRICS CHECK ============
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'CYBERSPLOI API Gateway is online and operational',
+    service: 'cybersploi-backend',
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      metrics: '/api/metrics',
+      frontend: 'http://localhost:3000'
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.get('/health', (req, res) => {
   res.json({
     success: true,
